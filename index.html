@@ -1,0 +1,187 @@
+<!--
+ * Copyright (c) 2009 Hyves <hyves-api@hyves.nl>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ *
+ * @author Derk Braakman (derk@hyves.nl)
+ * @url http://derkmdt.hyves.nl/
+ -->
+<html>
+  <head>
+	<title>SpinAwards photoprint</title>
+	<link rel="shortcut icon" href="favicon.ico">
+	<link href="style.css" rel="stylesheet" type="text/css" />
+	<script src="js/GenusApis.js" type="text/javascript" /></script>
+	<script src="js/dw_event.js" type="text/javascript" /></script>
+	<script src="js/dw_scroll.js" type="text/javascript" /></script>
+	<script src="js/dw_scrollbar.js" type="text/javascript" /></script>
+	<script src="js/scroll_controls.js" type="text/javascript" /></script>
+	<script src="js/prototype.js" type="text/javascript" /></script>
+	<script src="js/settings.js" type="text/javascript" /></script>
+	<script src="js/photoprint.js" type="text/javascript" /></script>
+	<script src="js/notifier.js" type="text/javascript" charset="utf-8" /></script>
+	<script src="js/exif.js" type="text/javascript" /></script>
+	
+	<script type="text/javascript">
+	var popup_callback_url = "enter popup callback file location here";
+	var oOAuthConsumer = new OAuthConsumer("MjE1NF88aBgJLU7EzjVVPHt8Z-bb", "MjE1NF-RicIxhuBn5xtezaSnY4U_");
+	var oGenusApis = new GenusApis(oOAuthConsumer, exceptionHandler);
+	var oOAuthToken = null;
+	var stringMessage = '';
+	var reporting = 0;
+	
+	function init() {
+		defaultoneverypage();
+		getByShortname(sHangout);
+	}
+	
+	function loopObject(varObject) {
+		for (var name in varObject) {
+			console.log(name + "in " + varObject[name]);
+		}
+	}
+
+	function getByShortname(shortnamestring) {
+		stringMessage = "Loading data..";
+		oGenusApis.doMethod("hangouts.getByShortname", { shortname : shortnamestring }, callbackalbumsgetbyhangout);
+	}
+
+	function callbackalbumsgetbyhangout(data) {
+		stringMessage = "Loading data..";
+		oGenusApis.doMethod("albums.getByHangout", { hangoutid :  data.hangout[0].hangoutid }, callbackmediagetbyhangout);
+	}
+
+	function callbackmediagetbyhangout(data) {
+		stringMessage = "Loading data..";
+		oGenusApis.doMethod("media.getByAlbum", { albumid : data.album[0].albumid, ha_page: 1, ha_resultsperpage: iTotalPhotos }, callbackResponseMedia);
+	}
+
+	function callbackResponseMedia(data) {
+		stringMessage = "Loading data..";
+		var string = "<table id='t1' border='0' cellpadding='0' cellspacing='5'><tr><td>";
+		var iCount = 0;
+		for (x in data.media) {
+			if(data.media[x].image_fullscreen != undefined) {
+				if(x == 0) data.media[0].icon_extralarge.src = 'images/nieuwe_pand.jpg';
+				if((iCount%2) == 0) {
+					string += '</td><td valign=\'top\'>';
+				}
+				//stringMessage += (iCount%2)+' media: '+data.media[x].mediaid+'<br>';
+				var dt = formatdate(data.media[x].created, 2);
+				string += "<div class=\"photocontentholder\"><div class=\"photoholder\"><div class=\"photo\"><a href=\"javascript:printImage('"+data.media[x].mediaid+","+data.media[x].userid+"')\"><img border=\"0\" id='photo"+x+"' name='photo"+x+"' alt='"+data.media[x].title+"' src='"+data.media[x].icon_extralarge.src+"' onClick=\"alert(EXIF.pretty(this))\"></a></div><div class=\"captiondiv\">"+dt+"</div></div></div>";
+				iCount++;
+			}
+		}
+		
+		string += "</td></tr></table>";
+		//stringMessage += dataStructureToHtml("results", data);
+		document.getElementById('lyr1').innerHTML = string;
+		if(reporting != 0) {
+			document.getElementById('messagediv').style.display = 'block';
+			document.getElementById('messagediv').innerHTML = stringMessage;
+		}
+		if ( dw_scrollObj.isSupported() ) {
+			//dw_writeStyleSheet('css/scroll.css');
+			init_dw_Scroll();
+		}
+	}
+
+	function callbackResponse(data) {
+		stringMessage = dataStructureToHtml("results", data);
+		if(reporting != 0) {
+			document.getElementById('messagediv').style.display = 'block';
+			document.getElementById('messagediv').innerHTML = stringMessage;
+		}
+	}
+
+	function exceptionHandler(e) {
+		if (e.getType() == 'HyvesApiException') {
+			stringMessage = dataStructureToHtml("results", e.getResponse());
+		}
+		alert("Exception occured! (" + e.getCode() + ") " + e.getMessage());
+	}
+
+	function dataStructureToHtml(key, data) {
+		var string = "\"" + key + "\" : ";
+		if (data == null) {
+			string += "null<br>";
+		} else if (typeof(data) == "object") {
+			string += "<br>{<br>";
+			for (x in data) {
+				string += dataStructureToHtml(x, data[x]);
+			}
+			string += "}<br>";
+		} else if (typeof(data) == "number") {
+			string += data + "<br>";
+		} else {
+			string += "\"" + data + "\"<br>";
+		}
+		return string;
+	}
+	function printImage(data) {
+		var mediadata = data.split(",");
+		self.location.href = "print.html?mediaid="+mediadata[0]+"&userid="+mediadata[1];
+	}
+	function init_dw_Scroll() {
+		var wndo = new dw_scrollObj('wn', 'lyr1', 't1');
+		wndo.setUpScrollbar("dragBar", "track", "h", 1, 1);
+		wndo.setUpScrollControls('scrollbar');
+	}
+	document.observe('dom:loaded', function() {
+
+		new Notifier(2000);
+
+		document.observe('state:idle', onIdle).observe('state:active', onActive);
+
+		function onIdle(e) {
+			var totaltime = iTimeRefresh;
+			document.getElementById('timetoo').innerHTML = 'Over ' + (totaltime - e.memo.idleTime) + ' seconden worden de laatste fotos automatisch opgehaald';
+			if(e.memo.idleTime == totaltime) {
+				//refreshpage();
+			}
+		}
+		function onActive(e) {
+			//document.getElementById('timetoo').innerHTML = 'active... after: ' + e.memo.idleTime + ' ms';
+		}
+	})
+	function refreshpage() {
+		window.location.reload( false );
+	}
+	window.onload = function() {init();}
+	</script>
+  </head>
+<body>
+<div id='homecontent'>
+	<div class="headerbar"></div>
+	<div id="messagediv"></div>
+	<div id="timetoo"></div>
+	<div id="scrollbackground">
+	<div id="scrollholder">
+	<div class="header"><script type="text/javascript">document.write(sTextHeaderIndex);</script></div>
+	<div class="refresh" onClick="refreshpage();"><img src="images/scherm/scherm_01_11.png" width="24" height="28" alt="" border="0" onMouseOver="imageOver(this,'images/scherm/scherm_01_11B.png')"  onMouseOut="imageOver(this,'images/scherm/scherm_01_11.png')" /></div>
+		<div id='wn'>
+				<div id='lyr1'></div>
+			</div>  <!-- end wn div -->
+			<div id="scrollbar">
+				<div id="left"><a class="mouseover_left" href="#"><img src="images/scherm/scherm_01_07.png" width="53" height="44" alt="" border="0" onMouseOver="imageOver(this,'images/scherm/scherm_01_07B.png')"  onMouseOut="imageOver(this,'images/scherm/scherm_01_07.png')" /></a></div>
+				<div id="track">
+					 <div id="dragBar"><div id="dragbarleft"></div><div id="dragbarmiddle"></div><div id="dragbarright"></div></div>
+				</div>
+				<div id="right"><a class="mouseover_right" href="#"><img src="images/scherm/scherm_01_09.png" width="51" height="44" alt="" border="0" onMouseOver="imageOver(this,'images/scherm/scherm_01_09B.png')"  onMouseOut="imageOver(this,'images/scherm/scherm_01_09.png')" /></a></div>
+			 </div>
+		 </div>
+	 </div>
+ </div>
+</body>
+</html>

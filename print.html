@@ -1,0 +1,153 @@
+<!--
+ * Copyright (c) 2009 Hyves <hyves-api@hyves.nl>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ *
+ * @author Derk Braakman (derk@hyves.nl)
+ * @url http://derkmdt.hyves.nl/
+ -->
+<html>
+  <head>
+	<title>SpinAwards photoprint</title>
+	<link rel="shortcut icon" href="favicon.ico">
+	<link href="style.css" rel="stylesheet" type="text/css" />
+	<script src="js/GenusApis.js" type="text/javascript"></script>
+	<script src="js/settings.js" type="text/javascript"></script>	
+	<script src="js/photoprint.js" type="text/javascript"></script>
+	<script src="js/prototype.js" type="text/javascript"></script>
+	<script src="js/notifier.js" type="text/javascript" charset="utf-8"></script>
+	
+	<script type="text/javascript">
+	var popup_callback_url = "enter popup callback file location here";
+	var oOAuthConsumer = new OAuthConsumer("MjE1NF88aBgJLU7EzjVVPHt8Z-bb", "MjE1NF-RicIxhuBn5xtezaSnY4U_");
+	var oGenusApis = new GenusApis(oOAuthConsumer, exceptionHandler);
+	var oOAuthToken = null;
+	var stringMessage = '';
+	var reporting = 1;
+	var $_GET = new Object();
+	var userdata = new Object();
+
+	function init() {
+		defaultoneverypage();	
+		var $qry_str = location.search.substring(1);
+		var $k = 0;
+		if($qry_str.split("=")[1]){
+			do {
+				$_GET[$qry_str.split("=")[0].replace(/&/, "")] = $qry_str.split("=")[1].split(/&|$/)[0];
+				$qry_str = $qry_str.split($qry_str.split("=")[1].split(/&|$/)[0])[1];
+				$k ++;
+			} while($k < (location.search.split("=").length - 1));
+			userget();
+		}
+	}
+	function userget() {
+		stringMessage = "Loading data..";
+		oGenusApis.doMethod("users.get", { userid : $_GET['userid'], ha_responsefields: 'profilepicture' }, callbackResponseUser);
+	}
+	function callbackResponseUser(data) {
+		userdata = data;
+		stringMessage = "Loading data..";
+		oGenusApis.doMethod("media.get", { mediaid : $_GET['mediaid'] }, callbackResponseMedia); //, ha_responsefields: 'image_original' 
+	}
+	function callbackResponseMedia(data) {
+		stringMessage = "Loading data..";
+		if(data.media[0].image_fullscreen != undefined) {
+			//stringMessage += (iCount%2)+' media: '+data.media[x].icon_large.src+'<br>';
+
+			var name = "";
+			if(userdata.user[0].firstname != null) name += userdata.user[0].firstname;
+			if(userdata.user[0].lastname != null) name += " "+userdata.user[0].lastname;
+
+			var dt = formatdate(data.media[0].created, 0);
+
+			var string = "<div id=\"photoprintholder\">";
+			string += "<div class=\"title\">"+data.media[0].title+"</div>";
+			string += "<div class=\"photoholder\">";
+			string += "<div id=\"photocropdiv\" class=\"photocrop\"><img id=\"printphotodiv\" class=\"printphoto\"></div><img src=\"images/scherm/magneet_foto.png\" class=\"overlay\" ></div><img src=\"images/scherm/transparent.png\" class=\"overlay2\" id=\"overlay2\" >";
+			string += "</div>";
+			string += "</div>";
+
+			string += "<div id=\"photoinfo\"><div id=\"userphoto\"><img src=\""+userdata.user[0].profilepicture.icon_medium.src+"\" border=\"\"></div><div id=\"posted\">"+name+"<br>"+dt+"</div>";
+
+			string += "<div id=\"printbuttons\"><a href=\"javascript:backtohome();\"><img src=\"images/scherm/scherm_02_06.png\" border=\"0\" onMouseOver=\"imageOver(this,'images/scherm/scherm_02_06B.png')\" onMouseOut=\"imageOver(this,'images/scherm/scherm_02_06.png')\" ></a><a href=\"javascript:printImage('"+data.media[0].image_fullscreen.src+"');\"><img src=\"images/scherm/scherm_02_07.png\" border=\"0\" onMouseOver=\"imageOver(this,'images/scherm/scherm_02_07B.png')\"  onMouseOut=\"imageOver(this,'images/scherm/scherm_02_07.png')\" ></a><br></div>";
+			string += "</div>";
+		}
+		//string += dataStructureToHtml("results", data);
+		document.getElementById('photoholder').innerHTML = string;
+		tracephoto('printphotodiv', data.media[0].image_fullscreen.src);
+	}
+
+	function callbackResponse(data) {
+		stringMessage = dataStructureToHtml("results", data);
+		if(reporting != 0) {
+			document.getElementById('messagediv').style.display = 'block';
+			document.getElementById('messagediv').innerHTML = stringMessage;
+		}
+	}
+
+	function exceptionHandler(e) {
+		if (e.getType() == 'HyvesApiException') {
+			stringMessage = dataStructureToHtml("results", e.getResponse());
+		}
+		alert("Exception occured! (" + e.getCode() + ") " + e.getMessage());
+	}
+
+	function dataStructureToHtml(key, data) {
+		var string = "\"" + key + "\" : ";
+		if (data == null) {
+			string += "null<br>";
+		} else if (typeof(data) == "object") {
+			string += "<br>{<br>";
+			for (x in data) {
+				string += dataStructureToHtml(x, data[x]);
+			}
+			string += "}<br>";
+		} else if (typeof(data) == "number") {
+			string += data + "<br>";
+		} else {
+			string += "\"" + data + "\"<br>";
+		}
+		return string;
+	}
+
+	function backtohome() {
+		self.location.href = "index.html";
+	}
+
+	document.observe('dom:loaded', function() {
+
+		new Notifier(2000);
+		
+		document.observe('state:idle', onIdle).observe('state:active', onActive);
+		
+		function onIdle(e) {
+			var totaltime = iTimeHome;
+			document.getElementById('printtimetoo').innerHTML.innerHTML = 'Over ' + (totaltime - e.memo.idleTime) + ' seconden wordt deze pagina ververst.';
+			if(e.memo.idleTime == totaltime) {
+				window.location='index.html';
+			}
+		}
+	})
+	window.onload = function() {init();}
+	</script>
+  </head>
+<body>
+<div id='printcontent'>
+<div class="headerbar"></div>
+<div id="messagediv"></div>
+<div id="photoholder"></div>
+<div id="printtimetoo"></div>
+</div>
+</body>
+</html>
