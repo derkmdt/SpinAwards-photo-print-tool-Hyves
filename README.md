@@ -21,7 +21,7 @@ We have set these tweak settings fot Firefox 3.0.7 for the best experience:
    
 @namespace url(http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul);
 
-#fullscr-toggler {
+/* #fullscr-toggler {
 
 min-height: 0px !important;
 
@@ -34,13 +34,15 @@ border: 0 !important;
 margin: -0.5px 0 -1.2px 0 !important; padding: 0 !important;
 
 }
+
+*/
 	
-	3. Test Fullscreen by pressing F11
+   3. Test Fullscreen by pressing F11
 
 * Disable image rect on select images
    1. In a new tab type about:config
    2. In the filter field type "browser.display.focus_ring_width"
    3. Double-click on the entry and change the value to "0"
    
-   todo:
-   max 3x printen
+todo:
+max 3x printen
